@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -58,6 +60,18 @@ func TestParseTextRecordWithEscapedQuote(t *testing.T) {
 func TestParseRecordRejectsPlainLine(t *testing.T) {
 	if _, ok := parseRecord("ordinary line without key values"); ok {
 		t.Fatal("parseRecord returned true")
+	}
+}
+
+func TestRunHandlesLongLogLines(t *testing.T) {
+	line := `{"time":"2024-01-02T15:04:05.123Z","level":"INFO","msg":"` + strings.Repeat("x", 70*1024) + `"}` + "\n"
+
+	var out bytes.Buffer
+	if err := run(strings.NewReader(line), &out); err != nil {
+		t.Fatalf("run returned error: %v", err)
+	}
+	if !strings.Contains(out.String(), strings.Repeat("x", 1024)) {
+		t.Fatal("output does not contain long message")
 	}
 }
 
