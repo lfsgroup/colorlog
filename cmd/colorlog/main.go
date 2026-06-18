@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strconv"
@@ -14,9 +15,19 @@ import (
 	"github.com/lfsgroup/colorlog"
 )
 
+const maxScanTokenSize = 1024 * 1024
+
 func main() {
-	handler := colorlog.NewHandler(os.Stdout, nil)
-	scanner := bufio.NewScanner(os.Stdin)
+	if err := run(os.Stdin, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, "error reading stdin:", err)
+		os.Exit(1)
+	}
+}
+
+func run(stdin io.Reader, stdout io.Writer) error {
+	handler := colorlog.NewHandler(stdout, nil)
+	scanner := bufio.NewScanner(stdin)
+	scanner.Buffer(make([]byte, 0, 64*1024), maxScanTokenSize)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -34,9 +45,9 @@ func main() {
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error reading stdin:", err)
-		os.Exit(1)
+		return err
 	}
+	return nil
 }
 
 func parseRecord(line string) (slog.Record, bool) {
